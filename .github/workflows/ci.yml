@@ -22,4 +22,15 @@ jobs:
         with: { distribution: temurin, java-version: '25', cache: maven }
       - run: chmod +x mvnw
       - run: ./mvnw --batch-mode --update-snapshots verify
-
+      - name: Verify PostgreSQL migration and application startup
+        shell: bash
+        run: |
+          java -jar target/banking-management-system-*.jar > application.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..45}; do
+            if curl --fail --silent http://localhost:8080/actuator/health; then exit 0; fi
+            sleep 2
+          done
+          cat application.log
+          exit 1
